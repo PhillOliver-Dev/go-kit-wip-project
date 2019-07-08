@@ -2,8 +2,9 @@ package endpoint
 
 import (
 	"context"
-	endpoint "github.com/go-kit/kit/endpoint"
 	service "kit-test/bugs/pkg/service"
+
+	endpoint "github.com/go-kit/kit/endpoint"
 )
 
 // CreateRequest collects the request parameters for the Create method.

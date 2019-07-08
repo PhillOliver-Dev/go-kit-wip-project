@@ -2,24 +2,23 @@
 package endpoint
 
 import (
-	service "kit-test/users/pkg/service"
-
 	endpoint "github.com/go-kit/kit/endpoint"
+	service "kit-test/notifications/pkg/service"
 )
 
 // Endpoints collects all of the endpoints that compose a profile service. It's
 // meant to be used as a helper struct, to collect all of the endpoints into a
 // single parameter.
 type Endpoints struct {
-	CreateEndpoint endpoint.Endpoint
+	SendEmailEndpoint endpoint.Endpoint
 }
 
 // New returns a Endpoints struct that wraps the provided service, and wires in all of the
 // expected endpoint middlewares
-func New(s service.UsersService, mdw map[string][]endpoint.Middleware) Endpoints {
-	eps := Endpoints{CreateEndpoint: MakeCreateEndpoint(s)}
-	for _, m := range mdw["Create"] {
-		eps.CreateEndpoint = m(eps.CreateEndpoint)
+func New(s service.NotificationsService, mdw map[string][]endpoint.Middleware) Endpoints {
+	eps := Endpoints{SendEmailEndpoint: MakeSendEmailEndpoint(s)}
+	for _, m := range mdw["SendEmail"] {
+		eps.SendEmailEndpoint = m(eps.SendEmailEndpoint)
 	}
 	return eps
 }

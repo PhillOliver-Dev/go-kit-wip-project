@@ -2,9 +2,10 @@
 package http
 
 import (
-	http "github.com/go-kit/kit/transport/http"
 	endpoint "kit-test/users/pkg/endpoint"
 	http1 "net/http"
+
+	http "github.com/go-kit/kit/transport/http"
 )
 
 // NewHTTPHandler returns a handler that makes a set of endpoints available on

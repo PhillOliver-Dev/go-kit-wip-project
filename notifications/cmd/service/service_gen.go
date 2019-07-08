@@ -2,36 +2,34 @@
 package service
 
 import (
-	endpoint "kit-test/users/pkg/endpoint"
-	http1 "kit-test/users/pkg/http"
-	service "kit-test/users/pkg/service"
-
 	endpoint1 "github.com/go-kit/kit/endpoint"
 	log "github.com/go-kit/kit/log"
 	prometheus "github.com/go-kit/kit/metrics/prometheus"
 	opentracing "github.com/go-kit/kit/tracing/opentracing"
-	http "github.com/go-kit/kit/transport/http"
+	grpc "github.com/go-kit/kit/transport/grpc"
 	group "github.com/oklog/oklog/pkg/group"
 	opentracinggo "github.com/opentracing/opentracing-go"
+	endpoint "kit-test/notifications/pkg/endpoint"
+	service "kit-test/notifications/pkg/service"
 )
 
 func createService(endpoints endpoint.Endpoints) (g *group.Group) {
 	g = &group.Group{}
-	initHttpHandler(endpoints, g)
+	initGRPCHandler(endpoints, g)
 	return g
 }
-func defaultHttpOptions(logger log.Logger, tracer opentracinggo.Tracer) map[string][]http.ServerOption {
-	options := map[string][]http.ServerOption{"Create": {http.ServerErrorEncoder(http1.ErrorEncoder), http.ServerErrorLogger(logger), http.ServerBefore(opentracing.HTTPToContext(tracer, "Create", logger))}}
+func defaultGRPCOptions(logger log.Logger, tracer opentracinggo.Tracer) map[string][]grpc.ServerOption {
+	options := map[string][]grpc.ServerOption{"SendEmail": {grpc.ServerErrorLogger(logger), grpc.ServerBefore(opentracing.GRPCToContext(tracer, "SendEmail", logger))}}
 	return options
 }
 func addDefaultEndpointMiddleware(logger log.Logger, duration *prometheus.Summary, mw map[string][]endpoint1.Middleware) {
-	mw["Create"] = []endpoint1.Middleware{endpoint.LoggingMiddleware(log.With(logger, "method", "Create")), endpoint.InstrumentingMiddleware(duration.With("method", "Create"))}
+	mw["SendEmail"] = []endpoint1.Middleware{endpoint.LoggingMiddleware(log.With(logger, "method", "SendEmail")), endpoint.InstrumentingMiddleware(duration.With("method", "SendEmail"))}
 }
 func addDefaultServiceMiddleware(logger log.Logger, mw []service.Middleware) []service.Middleware {
 	return append(mw, service.LoggingMiddleware(logger))
 }
 func addEndpointMiddlewareToAllMethods(mw map[string][]endpoint1.Middleware, m endpoint1.Middleware) {
-	methods := []string{"Create"}
+	methods := []string{"SendEmail"}
 	for _, v := range methods {
 		mw[v] = append(mw[v], m)
 	}

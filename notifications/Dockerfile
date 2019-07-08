@@ -9,4 +9,4 @@ RUN go get  -t -v ./...
 RUN go get  github.com/canthefason/go-watcher
 RUN go install github.com/canthefason/go-watcher/cmd/watcher
 
-ENTRYPOINT  watcher -run kit-test/bugs/cmd  -watch kit-test/bugs
+ENTRYPOINT  watcher -run kit-test/notifications/cmd  -watch kit-test/notifications

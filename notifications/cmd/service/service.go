@@ -3,15 +3,6 @@ package service
 import (
 	"flag"
 	"fmt"
-	endpoint "kit-test/bugs/pkg/endpoint"
-	http "kit-test/bugs/pkg/http"
-	service "kit-test/bugs/pkg/service"
-	"net"
-	http1 "net/http"
-	"os"
-	"os/signal"
-	"syscall"
-
 	endpoint1 "github.com/go-kit/kit/endpoint"
 	log "github.com/go-kit/kit/log"
 	prometheus "github.com/go-kit/kit/metrics/prometheus"
@@ -21,8 +12,18 @@ import (
 	zipkingoopentracing "github.com/openzipkin/zipkin-go-opentracing"
 	prometheus1 "github.com/prometheus/client_golang/prometheus"
 	promhttp "github.com/prometheus/client_golang/prometheus/promhttp"
+	grpc1 "google.golang.org/grpc"
+	endpoint "kit-test/notifications/pkg/endpoint"
+	grpc "kit-test/notifications/pkg/grpc"
+	pb "kit-test/notifications/pkg/grpc/pb"
+	service "kit-test/notifications/pkg/service"
+	"net"
+	"net/http"
+	"os"
+	"os/signal"
 	appdash "sourcegraph.com/sourcegraph/appdash"
 	opentracing "sourcegraph.com/sourcegraph/appdash/opentracing"
+	"syscall"
 )
 
 var tracer opentracinggo.Tracer
@@ -30,7 +31,7 @@ var logger log.Logger
 
 // Define our flags. Your service probably won't need to bind listeners for
 // all* supported transports, but we do it here for demonstration purposes.
-var fs = flag.NewFlagSet("bugs", flag.ExitOnError)
+var fs = flag.NewFlagSet("notifications", flag.ExitOnError)
 var debugAddr = fs.String("debug.addr", ":8080", "Debug and metrics listen address")
 var httpAddr = fs.String("http-addr", ":8081", "HTTP listen address")
 var grpcAddr = fs.String("grpc-addr", ":8082", "gRPC listen address")
@@ -60,7 +61,7 @@ func Run() {
 			os.Exit(1)
 		}
 		defer collector.Close()
-		recorder := zipkingoopentracing.NewRecorder(collector, false, "localhost:80", "bugs")
+		recorder := zipkingoopentracing.NewRecorder(collector, false, "localhost:80", "notifications")
 		tracer, err = zipkingoopentracing.NewTracer(recorder)
 		if err != nil {
 			logger.Log("err", err)
@@ -88,20 +89,22 @@ func Run() {
 	logger.Log("exit", g.Run())
 
 }
-func initHttpHandler(endpoints endpoint.Endpoints, g *group.Group) {
-	options := defaultHttpOptions(logger, tracer)
-	// Add your http options here
+func initGRPCHandler(endpoints endpoint.Endpoints, g *group.Group) {
+	options := defaultGRPCOptions(logger, tracer)
+	// Add your GRPC options here
 
-	httpHandler := http.NewHTTPHandler(endpoints, options)
-	httpListener, err := net.Listen("tcp", *httpAddr)
+	grpcServer := grpc.NewGRPCServer(endpoints, options)
+	grpcListener, err := net.Listen("tcp", *grpcAddr)
 	if err != nil {
-		logger.Log("transport", "HTTP", "during", "Listen", "err", err)
+		logger.Log("transport", "gRPC", "during", "Listen", "err", err)
 	}
 	g.Add(func() error {
-		logger.Log("transport", "HTTP", "addr", *httpAddr)
-		return http1.Serve(httpListener, httpHandler)
+		logger.Log("transport", "gRPC", "addr", *grpcAddr)
+		baseServer := grpc1.NewServer()
+		pb.RegisterNotificationsServer(baseServer, grpcServer)
+		return baseServer.Serve(grpcListener)
 	}, func(error) {
-		httpListener.Close()
+		grpcListener.Close()
 	})
 
 }
@@ -118,7 +121,7 @@ func getEndpointMiddleware(logger log.Logger) (mw map[string][]endpoint1.Middlew
 		Help:      "Request duration in seconds.",
 		Name:      "request_duration_seconds",
 		Namespace: "example",
-		Subsystem: "bugs",
+		Subsystem: "notifications",
 	}, []string{"method", "success"})
 	addDefaultEndpointMiddleware(logger, duration, mw)
 	// Add you endpoint middleware here
@@ -126,14 +129,14 @@ func getEndpointMiddleware(logger log.Logger) (mw map[string][]endpoint1.Middlew
 	return
 }
 func initMetricsEndpoint(g *group.Group) {
-	http1.DefaultServeMux.Handle("/metrics", promhttp.Handler())
+	http.DefaultServeMux.Handle("/metrics", promhttp.Handler())
 	debugListener, err := net.Listen("tcp", *debugAddr)
 	if err != nil {
 		logger.Log("transport", "debug/HTTP", "during", "Listen", "err", err)
 	}
 	g.Add(func() error {
 		logger.Log("transport", "debug/HTTP", "addr", *debugAddr)
-		return http1.Serve(debugListener, http1.DefaultServeMux)
+		return http.Serve(debugListener, http.DefaultServeMux)
 	}, func(error) {
 		debugListener.Close()
 	})

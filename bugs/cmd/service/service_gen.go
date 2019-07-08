@@ -2,6 +2,10 @@
 package service
 
 import (
+	endpoint "kit-test/bugs/pkg/endpoint"
+	http1 "kit-test/bugs/pkg/http"
+	service "kit-test/bugs/pkg/service"
+
 	endpoint1 "github.com/go-kit/kit/endpoint"
 	log "github.com/go-kit/kit/log"
 	prometheus "github.com/go-kit/kit/metrics/prometheus"
@@ -9,9 +13,6 @@ import (
 	http "github.com/go-kit/kit/transport/http"
 	group "github.com/oklog/oklog/pkg/group"
 	opentracinggo "github.com/opentracing/opentracing-go"
-	endpoint "kit-test/bugs/pkg/endpoint"
-	http1 "kit-test/bugs/pkg/http"
-	service "kit-test/bugs/pkg/service"
 )
 
 func createService(endpoints endpoint.Endpoints) (g *group.Group) {

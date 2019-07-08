@@ -18,7 +18,8 @@ services:
     volumes:
     - .:/go/src/kit-test
     container_name: notifications
-    ports: []
+    ports:
+    - 8802:8082
   users:
     build:
       context: .
