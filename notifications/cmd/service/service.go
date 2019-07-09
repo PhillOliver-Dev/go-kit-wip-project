@@ -1,18 +1,9 @@
 package service
 
 import (
+	"context"
 	"flag"
 	"fmt"
-	endpoint1 "github.com/go-kit/kit/endpoint"
-	log "github.com/go-kit/kit/log"
-	prometheus "github.com/go-kit/kit/metrics/prometheus"
-	lightsteptracergo "github.com/lightstep/lightstep-tracer-go"
-	group "github.com/oklog/oklog/pkg/group"
-	opentracinggo "github.com/opentracing/opentracing-go"
-	zipkingoopentracing "github.com/openzipkin/zipkin-go-opentracing"
-	prometheus1 "github.com/prometheus/client_golang/prometheus"
-	promhttp "github.com/prometheus/client_golang/prometheus/promhttp"
-	grpc1 "google.golang.org/grpc"
 	endpoint "kit-test/notifications/pkg/endpoint"
 	grpc "kit-test/notifications/pkg/grpc"
 	pb "kit-test/notifications/pkg/grpc/pb"
@@ -21,9 +12,21 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
+
+	endpoint1 "github.com/go-kit/kit/endpoint"
+	log "github.com/go-kit/kit/log"
+	prometheus "github.com/go-kit/kit/metrics/prometheus"
+	"github.com/go-kit/kit/sd/etcd"
+	lightsteptracergo "github.com/lightstep/lightstep-tracer-go"
+	group "github.com/oklog/oklog/pkg/group"
+	opentracinggo "github.com/opentracing/opentracing-go"
+	zipkingoopentracing "github.com/openzipkin/zipkin-go-opentracing"
+	prometheus1 "github.com/prometheus/client_golang/prometheus"
+	promhttp "github.com/prometheus/client_golang/prometheus/promhttp"
+	grpc1 "google.golang.org/grpc"
 	appdash "sourcegraph.com/sourcegraph/appdash"
 	opentracing "sourcegraph.com/sourcegraph/appdash/opentracing"
-	"syscall"
 )
 
 var tracer opentracinggo.Tracer
@@ -86,6 +89,14 @@ func Run() {
 	g := createService(eps)
 	initMetricsEndpoint(g)
 	initCancelInterrupt(g)
+
+	registrar, err := registerService(logger)
+	if err != nil {
+		logger.Log(err)
+		return
+	}
+
+	defer registrar.Deregister()
 	logger.Log("exit", g.Run())
 
 }
@@ -155,4 +166,31 @@ func initCancelInterrupt(g *group.Group) {
 	}, func(error) {
 		close(cancelInterrupt)
 	})
+}
+
+func registerService(logger log.Logger) (*etcd.Registrar, error) {
+	var (
+		etcdServer = "http://etcd:2379"
+		prefix     = "/services/notifications/"
+		instance   = "notifications:8082"
+		key        = prefix + instance
+	)
+
+	client, err := etcd.NewClient(
+		context.Background(),
+		[]string{etcdServer},
+		etcd.ClientOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	registrar := etcd.NewRegistrar(client, etcd.Service{
+		Key:   key,
+		Value: instance,
+	}, logger)
+
+	registrar.Register()
+	logger.Log("notifications registered in etcd:", etcdServer)
+	return registrar, nil
+
 }
